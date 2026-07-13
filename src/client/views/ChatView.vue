@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { ChatDotRound, Lightning, Monitor, Promotion, Setting } from '@element-plus/icons-vue';
 
 import ChatMessage from '@/components/ChatMessage.vue';
@@ -18,6 +19,9 @@ const {
   sendMessage,
 } = useChat();
 
+const route = useRoute();
+const router = useRouter();
+
 const permissionVisible = computed({
   get: () => Boolean(pendingToolCall.value),
   set: (visible: boolean) => {
@@ -26,6 +30,35 @@ const permissionVisible = computed({
     }
   },
 });
+
+const isHomeRoute = computed(() => route.path === '/');
+
+const createSessionId = () => {
+  if (window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
+
+const pendingPromptKey = (sessionId: string) => `pending-prompt:${sessionId}`;
+
+const consumePendingPrompt = () => {
+  const sessionId = String(route.query.session_id ?? '');
+
+  if (!sessionId || route.path !== '/chat/code') {
+    return;
+  }
+
+  const pendingPrompt = window.sessionStorage.getItem(pendingPromptKey(sessionId));
+
+  if (!pendingPrompt) {
+    return;
+  }
+
+  window.sessionStorage.removeItem(pendingPromptKey(sessionId));
+  void sendMessage(pendingPrompt);
+};
 
 const features = [
   {
@@ -54,8 +87,36 @@ const submitOnEnter = (event: KeyboardEvent) => {
   }
 
   event.preventDefault();
-  void sendMessage();
+  void handleSend();
 };
+
+const handleSend = async () => {
+  const content = draft.value.trim();
+
+  if (!content || isSending.value) {
+    return;
+  }
+
+  if (!isHomeRoute.value) {
+    await sendMessage();
+    return;
+  }
+
+  const sessionId = createSessionId();
+  window.sessionStorage.setItem(pendingPromptKey(sessionId), content);
+  draft.value = '';
+
+  await router.push({
+    path: '/chat/code',
+    query: {
+      session_id: sessionId,
+    },
+  });
+};
+
+onMounted(consumePendingPrompt);
+
+watch(() => route.fullPath, consumePendingPrompt);
 </script>
 
 <template>
@@ -63,7 +124,7 @@ const submitOnEnter = (event: KeyboardEvent) => {
     <header class="topbar">
       <a class="brand" href="#hero" aria-label="返回顶部">
         <span class="brand-mark">*</span>
-        <span>AI路小飞</span>
+        <span>AI产品工作站</span>
       </a>
 
       <nav class="nav-links">
@@ -107,7 +168,7 @@ const submitOnEnter = (event: KeyboardEvent) => {
 
           <div class="composer-footer">
             <span>Enter 发送 · Shift+Enter 换行</span>
-            <el-button type="primary" :loading="isSending" @click="sendMessage">
+            <el-button type="primary" :loading="isSending" @click="handleSend">
               发送
             </el-button>
           </div>
@@ -130,7 +191,7 @@ const submitOnEnter = (event: KeyboardEvent) => {
 
         <div class="workspace-demo">
           <div class="demo-chat">
-            <p class="demo-title">AI路小飞</p>
+            <p class="demo-title">AI产品工作站</p>
             <div class="demo-line user">帮我做一个待办应用，能标优先级和截止日期</div>
             <div class="demo-line ai">好嘞，正在搭一个 Vue 应用，带优先级标签和清爽列表。</div>
             <div class="demo-tool">
@@ -230,15 +291,6 @@ const submitOnEnter = (event: KeyboardEvent) => {
       </el-button>
     </section>
 
-    <footer class="footer">
-      <span>Copyright © 2026. 保留所有权利。</span>
-      <nav>
-        <a href="#">隐私政策</a>
-        <a href="#">使用条款</a>
-        <a href="#">京ICP备2025147746号-3</a>
-      </nav>
-    </footer>
-
     <PermissionDialog
       v-model="permissionVisible"
       :tool-call="pendingToolCall"
@@ -301,8 +353,7 @@ const submitOnEnter = (event: KeyboardEvent) => {
 }
 
 .nav-links a,
-.settings-link,
-.footer a {
+.settings-link {
   color: #5f5f5f;
   font-weight: 600;
   text-decoration: none;
@@ -650,17 +701,4 @@ h2 {
   color: #fff;
 }
 
-.footer {
-  display: flex;
-  justify-content: space-between;
-  width: min(1280px, calc(100% - 72px));
-  margin: 0 auto;
-  padding: 0 0 36px;
-  color: #777;
-}
-
-.footer nav {
-  display: flex;
-  gap: 18px;
-}
 </style>

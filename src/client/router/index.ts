@@ -7,7 +7,12 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'chat',
+      name: 'home',
+      component: ChatView,
+    },
+    {
+      path: '/chat/code',
+      name: 'chat-code',
       component: ChatView,
     },
     {

@@ -64,7 +64,7 @@ export function useChat() {
       role: 'assistant',
       createdAt: now(),
       content:
-        '你好，我是你的 AI 产品工作台。直接描述你想做的页面、工具或自动化，我会拆解需求、生成代码，并展示每一步工具调用。',
+        '你好，我是你的 AI产品工作站。直接描述你想做的页面、工具或自动化，我会拆解需求、生成代码，并展示每一步工具调用。',
     },
   ]);
 
@@ -95,8 +95,8 @@ export function useChat() {
     pendingToolCall.value = null;
   };
 
-  const sendMessage = async () => {
-    const content = draft.value.trim();
+  const sendMessage = async (message?: string) => {
+    const content = (message ?? draft.value).trim();
 
     if (!content || isSending.value) {
       return;
@@ -109,7 +109,9 @@ export function useChat() {
       content,
     });
 
-    draft.value = '';
+    if (!message) {
+      draft.value = '';
+    }
     isSending.value = true;
 
     await new Promise((resolve) => window.setTimeout(resolve, 500));

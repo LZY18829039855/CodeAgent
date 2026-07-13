@@ -33,7 +33,7 @@ const markdown = new MarkdownIt({
 
     <div class="message-main">
       <div class="message-meta">
-        <span>{{ props.message.role === 'assistant' ? 'AI路小飞' : '我' }}</span>
+        <span>{{ props.message.role === 'assistant' ? 'AI产品工作站' : '我' }}</span>
         <time>{{ props.message.createdAt }}</time>
       </div>
 
