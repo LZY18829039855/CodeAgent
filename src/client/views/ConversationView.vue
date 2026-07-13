@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { ArrowUp, Cpu, House, MoreFilled } from '@element-plus/icons-vue';
+import { ArrowUp, MoreFilled, Plus } from '@element-plus/icons-vue';
 
-import ChatMessage from '@/components/ChatMessage.vue';
 import PermissionDialog from '@/components/PermissionDialog.vue';
+import ToolCallDetail from '@/components/ToolCallDetail.vue';
 import { useChat } from '@/composables/useChat';
 
 const route = useRoute();
@@ -20,9 +20,13 @@ const {
 } = useChat();
 
 const sessionId = computed(() => String(route.query.session_id ?? ''));
-const sessionLabel = computed(() => sessionId.value.slice(0, 8) || 'local');
 
 const pendingPromptKey = (id: string) => `pending-prompt:${id}`;
+
+const sessionItems = Array.from({ length: 6 }, (_, index) => ({
+  id: index,
+  title: '未命名会话',
+}));
 
 const permissionVisible = computed({
   get: () => Boolean(pendingToolCall.value),
@@ -60,90 +64,111 @@ onMounted(() => {
 
 <template>
   <main class="conversation-page">
-    <header class="conversation-topbar">
-      <RouterLink class="conversation-brand" to="/">
+    <aside class="sidebar">
+      <RouterLink class="sidebar-brand" to="/">
         <span class="brand-mark">*</span>
-        <span>AI产品工作站</span>
+        <span>
+          <strong>AI产品工作站</strong>
+          <em>代码24小时在线开发，无需运维</em>
+        </span>
       </RouterLink>
 
-      <nav>
-        <RouterLink to="/">首页</RouterLink>
-        <RouterLink to="/settings">设置</RouterLink>
+      <nav class="sidebar-nav">
+        <RouterLink to="/" class="nav-item">
+          <span>⌘</span>
+          案例库
+        </RouterLink>
+        <RouterLink to="/" class="nav-item">
+          <span>✎</span>
+          新会话
+        </RouterLink>
       </nav>
 
-      <div class="session-pill">
-        <el-icon><Cpu /></el-icon>
-        会话 {{ sessionLabel }}
+      <div class="session-list">
+        <p>今天</p>
+        <button
+          v-for="item in sessionItems"
+          :key="item.id"
+          type="button"
+          class="session-item"
+          :class="{ active: item.id === 0 }"
+        >
+          <span />
+          {{ item.title }}
+        </button>
       </div>
-    </header>
 
-    <section class="conversation-shell">
-      <aside class="conversation-chat">
-        <div class="chat-head">
-          <div>
-            <p class="eyebrow">AI workspace · 对话工作台</p>
-            <h1>左边对话，右边预览你的应用</h1>
+      <div class="user-card">
+        <span>用</span>
+        用户9855
+      </div>
+    </aside>
+
+    <section class="chat-column">
+      <div class="chat-card">
+        <header class="chat-toolbar">
+          <div class="chat-title">
+            <span class="title-icon">▣</span>
+            <strong>未命名会话</strong>
           </div>
-          <el-button circle>
+          <el-button text circle>
             <el-icon><MoreFilled /></el-icon>
           </el-button>
+        </header>
+
+        <div class="message-list">
+          <article
+            v-for="message in messages"
+            :key="message.id"
+            class="message-row"
+            :class="`message-row--${message.role}`"
+          >
+            <div class="message-bubble">
+              {{ message.content }}
+            </div>
+
+            <ToolCallDetail
+              v-for="toolCall in message.toolCalls"
+              :key="toolCall.id"
+              :tool-call="toolCall"
+            />
+          </article>
         </div>
 
-        <div class="conversation-messages">
-          <ChatMessage v-for="message in messages" :key="message.id" :message="message" />
-        </div>
-
-        <div class="conversation-composer">
+        <div class="chat-composer">
+          <button type="button" class="composer-icon" aria-label="添加附件">
+            <el-icon><Plus /></el-icon>
+          </button>
           <el-input
             v-model="draft"
             type="textarea"
-            :autosize="{ minRows: 2, maxRows: 5 }"
+            :autosize="{ minRows: 2, maxRows: 4 }"
             resize="none"
-            placeholder="继续描述你想改什么..."
+            placeholder="输入你的想法..."
             @keydown.enter="submitOnEnter"
           />
-          <el-button type="primary" circle :loading="isSending" @click="sendMessage">
+          <button type="button" class="composer-icon" aria-label="工具选项">⌘</button>
+          <el-button type="primary" circle :loading="isSending" aria-label="发送" @click="sendMessage()">
             <el-icon><ArrowUp /></el-icon>
           </el-button>
         </div>
-      </aside>
+      </div>
+    </section>
 
-      <section class="app-preview">
-        <div class="preview-address">
-          <span>
-            <el-icon><House /></el-icon>
-            todo.luffy.app
-          </span>
-          <strong>在线</strong>
+    <section class="preview-column">
+      <div class="preview-card">
+        <header class="preview-toolbar">
+          <div class="address-bar">LocalHost</div>
+          <button type="button">↗</button>
+          <button type="button">⌄</button>
+          <button type="button" class="publish-btn">发布</button>
+        </header>
+
+        <div class="preview-empty">
+          <div class="empty-icon">⌘</div>
+          <p>程序完成首次部署后，这里会显示应用预览。</p>
         </div>
-
-        <div class="preview-card">
-          <div class="preview-card-head">
-            <h2>今天</h2>
-            <span>3</span>
-          </div>
-
-          <div class="preview-input">
-            <span>添加任务...</span>
-            <button type="button">+</button>
-          </div>
-
-          <ul class="task-list">
-            <li>
-              <span>上线落地页</span>
-              <em>低</em>
-            </li>
-            <li>
-              <span>看一下 PR</span>
-              <em>中</em>
-            </li>
-            <li>
-              <span>准备投资人演示</span>
-              <em>高</em>
-            </li>
-          </ul>
-        </div>
-      </section>
+      </div>
     </section>
 
     <PermissionDialog
@@ -157,243 +182,310 @@ onMounted(() => {
 
 <style scoped>
 .conversation-page {
+  display: grid;
+  grid-template-columns: 220px minmax(420px, 1fr) minmax(480px, 1.22fr);
+  gap: 10px;
   min-width: 1180px;
   min-height: 100vh;
-  padding: 28px;
+  padding: 8px;
   color: #171717;
-  background:
-    radial-gradient(circle at 12% 0%, rgba(215, 71, 44, 0.12), transparent 30%),
-    linear-gradient(180deg, #fff8f1 0%, #f5eee5 100%);
+  background: #f6f0e6;
 }
 
-.conversation-topbar,
-.conversation-shell {
-  width: min(1380px, 100%);
-  margin: 0 auto;
+.sidebar,
+.chat-card,
+.preview-card {
+  min-height: calc(100vh - 16px);
+  background: #fffaf2;
+  border: 1px solid #e7dfd4;
+  box-shadow: 0 16px 48px rgba(75, 46, 26, 0.08);
 }
 
-.conversation-topbar {
+.sidebar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 64px;
+  flex-direction: column;
+  padding: 14px 10px;
+  border-radius: 18px;
 }
 
-.conversation-brand,
-.conversation-topbar nav,
-.session-pill {
+.sidebar-brand {
   display: flex;
-  align-items: center;
-}
-
-.conversation-brand {
+  align-items: flex-start;
   gap: 10px;
-  color: #171717;
-  font-weight: 900;
+  color: #191613;
   text-decoration: none;
 }
 
 .brand-mark {
   display: grid;
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   color: #fff;
   background: #171717;
-  border-radius: 12px;
+  border-radius: 50%;
   place-items: center;
 }
 
-.conversation-topbar nav {
-  gap: 26px;
+.sidebar-brand strong,
+.sidebar-brand em {
+  display: block;
 }
 
-.conversation-topbar nav a {
-  color: #5f5a54;
-  font-weight: 700;
+.sidebar-brand strong {
+  font-size: 15px;
+}
+
+.sidebar-brand em {
+  margin-top: 2px;
+  color: #877d72;
+  font-size: 10px;
+  font-style: normal;
+}
+
+.sidebar-nav {
+  display: grid;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.nav-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 6px;
+  color: #191613;
+  font-size: 14px;
+  font-weight: 800;
   text-decoration: none;
 }
 
-.session-pill {
-  gap: 8px;
-  padding: 9px 14px;
-  color: #6d6258;
-  background: rgba(255, 255, 255, 0.74);
-  border: 1px solid #e7ddd2;
-  border-radius: 999px;
+.session-list {
+  margin-top: 30px;
 }
 
-.conversation-shell {
-  display: grid;
-  grid-template-columns: 0.96fr 1.04fr;
-  min-height: calc(100vh - 120px);
-  margin-top: 24px;
-  overflow: hidden;
-  background: rgba(255, 250, 242, 0.9);
-  border: 1px solid #e1d6ca;
-  border-radius: 30px;
-  box-shadow: 0 28px 80px rgba(75, 46, 26, 0.14);
-}
-
-.conversation-chat {
-  display: flex;
-  flex-direction: column;
-  min-height: 720px;
-  padding: 30px 30px 24px;
-  background: rgba(239, 229, 214, 0.42);
-  border-right: 1px solid #e1d6ca;
-}
-
-.chat-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  padding-bottom: 22px;
-  border-bottom: 1px solid rgba(75, 46, 26, 0.08);
-}
-
-.eyebrow {
-  margin: 0 0 10px;
-  color: #d7472c;
+.session-list p {
+  margin: 0 0 8px;
+  color: #938a7d;
   font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
-.chat-head h1 {
-  max-width: 520px;
-  margin: 0;
-  font-size: 34px;
-  line-height: 1.08;
-  letter-spacing: -0.05em;
-}
-
-.conversation-messages {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  padding: 24px 6px 24px 0;
-  overflow-y: auto;
-}
-
-.conversation-composer {
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.86);
-  border: 1px solid #e6ddd1;
-  border-radius: 22px;
-}
-
-.conversation-composer :deep(.el-textarea__inner) {
-  box-shadow: none;
-}
-
-.app-preview {
-  padding: 34px;
-  background:
-    radial-gradient(circle at 74% 18%, rgba(215, 71, 44, 0.08), transparent 28%),
-    #f7f0e6;
-}
-
-.preview-address {
+.session-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 34px;
-  color: #92877e;
+  width: 100%;
+  gap: 8px;
+  padding: 9px 8px;
+  color: #4f473e;
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
 }
 
-.preview-address span {
+.session-item span {
+  width: 13px;
+  height: 10px;
+  border: 1px solid #a99f92;
+  border-radius: 2px;
+}
+
+.session-item.active {
+  background: #e8dfd1;
+  color: #191613;
+  font-weight: 800;
+}
+
+.user-card {
+  display: flex;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid #e7ddd2;
-  border-radius: 999px;
+  gap: 8px;
+  margin-top: auto;
+  font-size: 13px;
+  font-weight: 800;
 }
 
-.preview-address strong {
-  color: #22a06b;
-}
-
-.preview-card {
-  min-height: 460px;
-  padding: 28px;
-  background: rgba(255, 255, 255, 0.84);
-  border: 1px solid #eee3d8;
-  border-radius: 24px;
-  box-shadow: 0 24px 58px rgba(75, 46, 26, 0.1);
-}
-
-.preview-card-head,
-.preview-input,
-.task-list li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.preview-card h2 {
-  margin: 0;
-  font-size: 32px;
-}
-
-.preview-card-head span {
+.user-card span {
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   color: #fff;
-  font-weight: 900;
-  background: #24201c;
+  background: #d7472c;
   border-radius: 50%;
   place-items: center;
 }
 
-.preview-input {
-  margin-top: 24px;
-  padding: 13px 13px 13px 18px;
-  color: #afa49a;
-  background: #f2eadf;
-  border: 1px solid #e5dacf;
-  border-radius: 15px;
+.chat-card,
+.preview-card {
+  overflow: hidden;
+  border-radius: 18px;
 }
 
-.preview-input button {
+.chat-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-toolbar,
+.preview-toolbar {
+  display: flex;
+  align-items: center;
+  height: 52px;
+  padding: 0 18px;
+  border-bottom: 1px solid #ede4d9;
+}
+
+.chat-toolbar {
+  justify-content: space-between;
+}
+
+.chat-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 900;
+}
+
+.title-icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  color: #d7472c;
+  background: #fff0e8;
+  border-radius: 8px;
+  place-items: center;
+}
+
+.message-list {
+  flex: 1;
+  min-height: 0;
+  padding: 44px 22px 18px;
+  overflow-y: auto;
+}
+
+.message-row {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 18px;
+}
+
+.message-row--user {
+  align-items: flex-end;
+}
+
+.message-row--assistant {
+  align-items: flex-start;
+}
+
+.message-bubble {
+  max-width: 78%;
+  padding: 16px 18px;
+  color: #3a322b;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  background: #eee5d8;
+  border: 1px solid #e1d7ca;
+  border-radius: 16px;
+}
+
+.message-row--user .message-bubble {
+  color: #fff;
+  background: #d7472c;
+  border-color: #d7472c;
+  border-radius: 18px 18px 4px 18px;
+}
+
+.message-row--assistant .message-bubble {
+  border-radius: 4px 18px 18px;
+}
+
+.chat-composer {
+  display: grid;
+  grid-template-columns: 34px 1fr 34px 38px;
+  gap: 10px;
+  align-items: end;
+  margin: 0 18px 14px;
+  padding: 12px;
+  background: #eee5d8;
+  border: 1px solid #ded3c5;
+  border-radius: 18px;
+  box-shadow: 0 12px 30px rgba(75, 46, 26, 0.08);
+}
+
+.chat-composer :deep(.el-textarea__inner) {
+  min-height: 42px !important;
+  background: transparent;
+  box-shadow: none;
+}
+
+.composer-icon {
+  display: grid;
   width: 34px;
   height: 34px;
-  color: #fff;
-  font-size: 20px;
-  font-weight: 900;
-  background: #d7472c;
-  border: 0;
+  color: #6b6258;
+  background: #f8f1e7;
+  border: 1px solid #e1d6ca;
   border-radius: 50%;
+  cursor: pointer;
+  place-items: center;
 }
 
-.task-list {
-  display: grid;
-  gap: 12px;
-  margin: 22px 0 0;
-  padding: 0;
-  list-style: none;
+.preview-card {
+  display: flex;
+  flex-direction: column;
+  background: #f7f0e6;
 }
 
-.task-list li {
-  padding: 14px 16px;
-  background: #fffaf5;
-  border: 1px solid #eee1d7;
-  border-radius: 14px;
+.preview-toolbar {
+  gap: 10px;
 }
 
-.task-list em {
-  padding: 4px 10px;
-  color: #d7472c;
-  font-style: normal;
-  font-weight: 900;
-  background: #fff0e8;
+.address-bar {
+  flex: 1;
+  height: 28px;
+  color: #6d6258;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 13px;
+  line-height: 28px;
+  text-align: center;
+  background: #eee6db;
+  border: 1px solid #ded5ca;
+  border-radius: 9px;
+}
+
+.preview-toolbar button {
+  height: 30px;
+  min-width: 30px;
+  color: #92877e;
+  background: #eee6db;
+  border: 1px solid #ded5ca;
   border-radius: 999px;
+}
+
+.preview-toolbar .publish-btn {
+  min-width: 64px;
+  color: #6d6258;
+  font-weight: 800;
+}
+
+.preview-empty {
+  flex: 1;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 14px;
+  color: #81776d;
+  text-align: center;
+}
+
+.empty-icon {
+  color: #8f867c;
+  font-size: 42px;
+}
+
+.preview-empty p {
+  margin: 0;
+  font-size: 14px;
 }
 </style>
