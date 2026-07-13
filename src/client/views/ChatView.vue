@@ -1,38 +1,19 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { ChatDotRound, Lightning, Monitor, Promotion, Setting } from '@element-plus/icons-vue';
+import { nextTick, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { ArrowUp, ChatDotRound, Lightning, Monitor, Promotion, Setting } from '@element-plus/icons-vue';
 
-import ChatMessage from '@/components/ChatMessage.vue';
-import PermissionDialog from '@/components/PermissionDialog.vue';
 import { useChat } from '@/composables/useChat';
 
 const {
   draft,
   examplePrompts,
   isSending,
-  messages,
-  pendingToolCall,
   applyExample,
-  approveToolCall,
-  rejectToolCall,
-  sendMessage,
 } = useChat();
 
-const route = useRoute();
 const router = useRouter();
 const composerRef = ref<HTMLElement | null>(null);
-
-const permissionVisible = computed({
-  get: () => Boolean(pendingToolCall.value),
-  set: (visible: boolean) => {
-    if (!visible) {
-      rejectToolCall();
-    }
-  },
-});
-
-const isHomeRoute = computed(() => route.path === '/');
 
 const createSessionId = () => {
   if (window.crypto?.randomUUID) {
@@ -43,23 +24,6 @@ const createSessionId = () => {
 };
 
 const pendingPromptKey = (sessionId: string) => `pending-prompt:${sessionId}`;
-
-const consumePendingPrompt = () => {
-  const sessionId = String(route.query.session_id ?? '');
-
-  if (!sessionId || route.path !== '/chat/code') {
-    return;
-  }
-
-  const pendingPrompt = window.sessionStorage.getItem(pendingPromptKey(sessionId));
-
-  if (!pendingPrompt) {
-    return;
-  }
-
-  window.sessionStorage.removeItem(pendingPromptKey(sessionId));
-  void sendMessage(pendingPrompt);
-};
 
 const features = [
   {
@@ -98,11 +62,6 @@ const handleSend = async () => {
     return;
   }
 
-  if (!isHomeRoute.value) {
-    await sendMessage();
-    return;
-  }
-
   const sessionId = createSessionId();
   window.sessionStorage.setItem(pendingPromptKey(sessionId), content);
   draft.value = '';
@@ -125,9 +84,11 @@ const fillPrompt = async (prompt: string) => {
   });
 };
 
-onMounted(consumePendingPrompt);
-
-watch(() => route.fullPath, consumePendingPrompt);
+const startConversation = async (prompt: string) => {
+  applyExample(prompt);
+  await nextTick();
+  await handleSend();
+};
 </script>
 
 <template>
@@ -156,31 +117,26 @@ watch(() => route.fullPath, consumePendingPrompt);
             <p class="eyebrow">你的 AI 产品工作室</p>
             <h1>想做个产品，<br />说出来就行。</h1>
           </div>
-          <el-tag effect="dark" round>在线</el-tag>
         </div>
 
         <p class="hero-desc">
           参考 AI 路小飞的产品表达方式，把自然语言需求转成可运行页面、组件和交互逻辑。
         </p>
 
-        <div class="messages">
-          <ChatMessage v-for="message in messages" :key="message.id" :message="message" />
-        </div>
-
         <div ref="composerRef" class="composer">
           <el-input
             v-model="draft"
             type="textarea"
-            :autosize="{ minRows: 3, maxRows: 5 }"
+            :autosize="{ minRows: 4, maxRows: 6 }"
             resize="none"
-            placeholder="帮我做一个 todo 应用..."
+            placeholder="给女朋友做个倒计时页，纪念我们在一起的日子..."
             @keydown.enter="submitOnEnter"
           />
 
           <div class="composer-footer">
             <span>Enter 发送 · Shift+Enter 换行</span>
-            <el-button type="primary" :loading="isSending" @click="handleSend">
-              发送
+            <el-button type="primary" circle :loading="isSending" aria-label="发送" @click="handleSend">
+              <el-icon><ArrowUp /></el-icon>
             </el-button>
           </div>
         </div>
@@ -192,47 +148,6 @@ watch(() => route.fullPath, consumePendingPrompt);
         </div>
       </aside>
 
-      <section class="preview-panel">
-        <div class="browser-bar">
-          <span />
-          <span />
-          <span />
-          <strong>luffy.academy/build</strong>
-        </div>
-
-        <div class="workspace-demo">
-          <div class="demo-chat">
-            <p class="demo-title">AI产品工作站</p>
-            <div class="demo-line user">帮我做一个待办应用，能标优先级和截止日期</div>
-            <div class="demo-line ai">好嘞，正在搭一个 Vue 应用，带优先级标签和清爽列表。</div>
-            <div class="demo-tool">
-              <span>write_file · ChatView.vue</span>
-              <strong>+ 128 行</strong>
-            </div>
-          </div>
-
-          <div class="demo-app">
-            <div class="app-status">
-              <span>todo.luffy.app</span>
-              <el-tag size="small" type="success">在线</el-tag>
-            </div>
-            <h3>今天 3</h3>
-            <div class="task-input">添加任务...</div>
-            <div class="task-row">
-              <span>上线落地页</span>
-              <el-tag size="small">低</el-tag>
-            </div>
-            <div class="task-row">
-              <span>看一下 PR</span>
-              <el-tag size="small" type="warning">中</el-tag>
-            </div>
-            <div class="task-row">
-              <span>准备投资人演示</span>
-              <el-tag size="small" type="danger">高</el-tag>
-            </div>
-          </div>
-        </div>
-      </section>
     </section>
 
     <section id="features" class="section-block">
@@ -367,18 +282,12 @@ watch(() => route.fullPath, consumePendingPrompt);
       <span class="cta-mark">&amp;</span>
       <h2>你的下一个产品，<br />只差一句话</h2>
       <p>现在就告诉它你想做什么。</p>
-      <el-button size="large" type="primary" round @click="fillPrompt('帮我做一个能上线的产品首页')">
+      <el-button size="large" type="primary" round @click="startConversation('帮我做一个能上线的产品首页')">
         开启对话
         <el-icon><Promotion /></el-icon>
       </el-button>
     </section>
 
-    <PermissionDialog
-      v-model="permissionVisible"
-      :tool-call="pendingToolCall"
-      @approve="approveToolCall"
-      @reject="rejectToolCall"
-    />
   </main>
 </template>
 
@@ -446,15 +355,11 @@ watch(() => route.fullPath, consumePendingPrompt);
 }
 
 .hero-shell {
-  display: grid;
-  grid-template-columns: 0.92fr 1.08fr;
-  gap: 28px;
   width: min(1280px, calc(100% - 72px));
   margin: 42px auto 0;
 }
 
 .chat-panel,
-.preview-panel,
 .section-block,
 .final-cta {
   border: 1px solid rgba(23, 23, 23, 0.08);
@@ -464,15 +369,17 @@ watch(() => route.fullPath, consumePendingPrompt);
 .chat-panel {
   display: flex;
   flex-direction: column;
-  min-height: 690px;
-  padding: 28px;
-  background: rgba(255, 255, 255, 0.86);
-  border-radius: 32px;
+  max-width: 740px;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .panel-heading {
   display: flex;
-  justify-content: space-between;
   gap: 18px;
 }
 
@@ -507,29 +414,35 @@ h2 {
 
 .hero-desc {
   max-width: 520px;
-  margin-bottom: 24px;
+  margin-bottom: 36px;
   color: #646464;
   font-size: 16px;
   line-height: 1.8;
 }
 
-.messages {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-height: 260px;
-  max-height: 360px;
-  padding-right: 6px;
-  overflow-y: auto;
+.composer {
+  position: relative;
+  min-height: 176px;
+  margin-top: 0;
+  padding: 22px 72px 22px 22px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid #e0d6cb;
+  border-radius: 24px;
+  box-shadow: 0 22px 55px rgba(75, 46, 26, 0.13);
 }
 
-.composer {
-  margin-top: 20px;
-  padding: 14px;
-  background: #f7f1ea;
-  border: 1px solid rgba(23, 23, 23, 0.06);
-  border-radius: 22px;
+.composer :deep(.el-textarea__inner) {
+  min-height: 104px !important;
+  padding: 0;
+  color: #221c18;
+  font-size: 18px;
+  line-height: 1.7;
+  background: transparent;
+  box-shadow: none;
+}
+
+.composer :deep(.el-textarea__inner::placeholder) {
+  color: #2d2620;
 }
 
 .composer-footer,
@@ -540,9 +453,26 @@ h2 {
 }
 
 .composer-footer {
-  margin-top: 12px;
+  margin-top: 18px;
   color: #888;
   font-size: 13px;
+}
+
+.composer-footer :deep(.el-button) {
+  position: absolute;
+  right: 22px;
+  bottom: 22px;
+  width: 52px;
+  height: 52px;
+  background: #d7472c;
+  border-color: #d7472c;
+  box-shadow: 0 16px 30px rgba(215, 71, 44, 0.28);
+}
+
+.composer-footer :deep(.el-button:hover) {
+  background: #c93c24;
+  border-color: #c93c24;
+  transform: translateY(-2px);
 }
 
 .hero-badges {
@@ -558,122 +488,6 @@ h2 {
   font-weight: 700;
   background: #fff3e9;
   border-radius: 999px;
-}
-
-.preview-panel {
-  padding: 20px;
-  background: #171717;
-  border-radius: 32px;
-}
-
-.browser-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 42px;
-  color: #a7a7a7;
-}
-
-.browser-bar span {
-  width: 10px;
-  height: 10px;
-  background: #f05d4f;
-  border-radius: 999px;
-}
-
-.browser-bar span:nth-child(2) {
-  background: #f6c85f;
-}
-
-.browser-bar span:nth-child(3) {
-  background: #65c96b;
-}
-
-.browser-bar strong {
-  margin-left: 12px;
-  font-size: 13px;
-}
-
-.workspace-demo {
-  display: grid;
-  grid-template-columns: 0.9fr 1.1fr;
-  gap: 18px;
-  min-height: 600px;
-}
-
-.demo-chat,
-.demo-app {
-  padding: 22px;
-  background: #232323;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 24px;
-}
-
-.demo-title,
-.app-status {
-  color: #fff;
-  font-weight: 800;
-}
-
-.demo-line {
-  margin-top: 16px;
-  padding: 14px;
-  color: #e8e8e8;
-  line-height: 1.6;
-  border-radius: 16px;
-}
-
-.demo-line.user {
-  background: #333;
-}
-
-.demo-line.ai {
-  background: #2e261f;
-}
-
-.demo-tool {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 18px;
-  padding: 14px;
-  color: #ffd1bc;
-  background: #151515;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-}
-
-.demo-app {
-  color: #171717;
-  background: linear-gradient(180deg, #fff 0%, #fff8f0 100%);
-}
-
-.app-status,
-.task-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.app-status {
-  color: #171717;
-}
-
-.demo-app h3 {
-  margin: 46px 0 18px;
-  font-size: 36px;
-}
-
-.task-input,
-.task-row {
-  margin-top: 12px;
-  padding: 16px;
-  background: #fff;
-  border: 1px solid #eee1d7;
-  border-radius: 16px;
-}
-
-.task-input {
-  color: #a0a0a0;
 }
 
 .section-block,
