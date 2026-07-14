@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { ArrowUp, MoreFilled, Plus } from '@element-plus/icons-vue';
 
@@ -9,6 +9,8 @@ import { useChat } from '@/composables/useChat';
 
 const route = useRoute();
 const messageListRef = ref<HTMLElement | null>(null);
+const thinkingSeconds = ref(0);
+let thinkingTimer: number | undefined;
 
 const {
   draft,
@@ -73,6 +75,26 @@ watch(
   },
 );
 
+watch(isSending, (sending) => {
+  if (thinkingTimer !== undefined) {
+    window.clearInterval(thinkingTimer);
+    thinkingTimer = undefined;
+  }
+
+  if (!sending) {
+    thinkingSeconds.value = 0;
+    return;
+  }
+
+  const startedAt = Date.now();
+  thinkingSeconds.value = 0;
+  void scrollToLatestMessage();
+
+  thinkingTimer = window.setInterval(() => {
+    thinkingSeconds.value = Math.floor((Date.now() - startedAt) / 1000);
+  }, 1000);
+});
+
 onMounted(() => {
   void scrollToLatestMessage();
 
@@ -88,6 +110,12 @@ onMounted(() => {
 
   window.sessionStorage.removeItem(pendingPromptKey(sessionId.value));
   void sendMessage(pendingPrompt);
+});
+
+onBeforeUnmount(() => {
+  if (thinkingTimer !== undefined) {
+    window.clearInterval(thinkingTimer);
+  }
 });
 </script>
 
@@ -162,6 +190,15 @@ onMounted(() => {
               :tool-call="toolCall"
             />
           </article>
+
+          <div v-if="isSending" class="thinking-indicator" role="status" aria-live="polite">
+            <span class="thinking-dots" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </span>
+            <span>思考中 · {{ thinkingSeconds }}s</span>
+          </div>
         </div>
 
         <div class="chat-composer" :class="{ 'is-generating': isSending }">
@@ -413,6 +450,8 @@ onMounted(() => {
 
 .message-list {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
   padding: 44px 22px 18px;
   overscroll-behavior: contain;
@@ -455,6 +494,57 @@ onMounted(() => {
 
 .message-row--assistant .message-bubble {
   border-radius: 4px 18px 18px;
+}
+
+.thinking-indicator {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 12px;
+  width: fit-content;
+  margin-bottom: 8px;
+  padding: 14px 18px;
+  color: #3a322b;
+  background: #eee5d8;
+  border: 1px solid #ddd2c4;
+  border-radius: 22px;
+  box-shadow: 0 8px 18px rgba(75, 46, 26, 0.08);
+}
+
+.thinking-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.thinking-dots i {
+  width: 7px;
+  height: 7px;
+  background: #81776d;
+  border-radius: 50%;
+  animation: thinking-pulse 1.2s ease-in-out infinite;
+}
+
+.thinking-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.thinking-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes thinking-pulse {
+  0%,
+  60%,
+  100% {
+    opacity: 0.45;
+    transform: translateY(0);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
 }
 
 .chat-composer {
