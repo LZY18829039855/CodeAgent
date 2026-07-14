@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { ArrowUp, MoreFilled, Plus } from '@element-plus/icons-vue';
+import { ArrowUp, FolderOpened, MoreFilled, Plus } from '@element-plus/icons-vue';
 
 import HtmlCodeBlock from '@/components/HtmlCodeBlock.vue';
 import PermissionDialog from '@/components/PermissionDialog.vue';
@@ -10,6 +10,8 @@ import { useChat } from '@/composables/useChat';
 
 const route = useRoute();
 const messageListRef = ref<HTMLElement | null>(null);
+const folderInputRef = ref<HTMLInputElement | null>(null);
+const selectedDirectory = ref('');
 const thinkingSeconds = ref(0);
 const previewHtml = ref('');
 let thinkingTimer: number | undefined;
@@ -39,6 +41,42 @@ interface MessageSegment {
   type: 'text' | 'html';
   content: string;
 }
+
+interface DirectoryPickerWindow extends Window {
+  showDirectoryPicker?: () => Promise<{ name: string }>;
+}
+
+const chooseDirectory = async () => {
+  const pickerWindow = window as DirectoryPickerWindow;
+
+  if (pickerWindow.showDirectoryPicker) {
+    try {
+      const directoryHandle = await pickerWindow.showDirectoryPicker();
+      selectedDirectory.value = directoryHandle.name;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
+
+      folderInputRef.value?.click();
+    }
+    return;
+  }
+
+  folderInputRef.value?.click();
+};
+
+const handleDirectoryFallback = (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const firstFile = input.files?.[0];
+
+  if (!firstFile) {
+    return;
+  }
+
+  selectedDirectory.value = firstFile.webkitRelativePath.split('/')[0] || firstFile.name;
+  input.value = '';
+};
 
 const parseMessageContent = (content: string): MessageSegment[] => {
   const segments: MessageSegment[] = [];
@@ -133,6 +171,7 @@ watch(isSending, (sending) => {
 
 onMounted(() => {
   void scrollToLatestMessage();
+  folderInputRef.value?.setAttribute('webkitdirectory', '');
 
   if (!sessionId.value) {
     return;
@@ -200,9 +239,27 @@ onBeforeUnmount(() => {
     <section class="chat-column">
       <div class="chat-card">
         <header class="chat-toolbar">
-          <div class="chat-title">
-            <span class="title-icon">▣</span>
-            <strong>未命名会话</strong>
+          <div class="chat-toolbar-main">
+            <div class="chat-title">
+              <span class="title-icon">▣</span>
+              <strong>未命名会话</strong>
+            </div>
+            <button
+              type="button"
+              class="directory-picker"
+              :title="selectedDirectory || '选择本机目录'"
+              @click="chooseDirectory"
+            >
+              <el-icon><FolderOpened /></el-icon>
+              <span>{{ selectedDirectory || '选择目录' }}</span>
+            </button>
+            <input
+              ref="folderInputRef"
+              class="directory-input"
+              type="file"
+              multiple
+              @change="handleDirectoryFallback"
+            />
           </div>
           <el-button text circle>
             <el-icon><MoreFilled /></el-icon>
@@ -484,9 +541,17 @@ onBeforeUnmount(() => {
   justify-content: space-between;
 }
 
+.chat-toolbar-main {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 14px;
+}
+
 .chat-title {
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
   gap: 10px;
   font-weight: 900;
 }
@@ -499,6 +564,38 @@ onBeforeUnmount(() => {
   background: #fff0e8;
   border-radius: 8px;
   place-items: center;
+}
+
+.directory-picker {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 220px;
+  gap: 7px;
+  padding: 7px 11px;
+  color: #6b6258;
+  background: #f3ece2;
+  border: 1px solid #e1d6ca;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.directory-picker:hover {
+  color: #d7472c;
+  background: #fff7ef;
+  border-color: #d9b9a8;
+}
+
+.directory-picker span {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.directory-input {
+  display: none;
 }
 
 .message-list {
