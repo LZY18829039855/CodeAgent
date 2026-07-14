@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ArrowUp, ChatDotRound, Lightning, Monitor, Promotion, Setting } from '@element-plus/icons-vue';
+import { ChatDotRound, Lightning, Monitor, Promotion, Setting } from '@element-plus/icons-vue';
 
 import { useChat } from '@/composables/useChat';
 
@@ -136,7 +136,10 @@ const startConversation = async (prompt: string) => {
           <div class="composer-footer">
             <span>Enter 发送 · Shift+Enter 换行</span>
             <el-button type="primary" circle :loading="isSending" aria-label="发送" @click="handleSend">
-              <el-icon><ArrowUp /></el-icon>
+              <svg class="send-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 19V5" />
+                <path d="M6.5 10.5 12 5l5.5 5.5" />
+              </svg>
             </el-button>
           </div>
         </div>
@@ -473,6 +476,17 @@ h2 {
   background: #c93c24;
   border-color: #c93c24;
   transform: translateY(-2px);
+}
+
+.send-arrow {
+  width: 24px;
+  height: 24px;
+  color: #fff;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
 }
 
 .hero-badges {

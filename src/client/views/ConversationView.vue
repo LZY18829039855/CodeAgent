@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { ArrowUp, FolderOpened, MoreFilled, Plus } from '@element-plus/icons-vue';
+import { FolderOpened, MoreFilled, Plus } from '@element-plus/icons-vue';
 
 import HtmlCodeBlock from '@/components/HtmlCodeBlock.vue';
 import PermissionDialog from '@/components/PermissionDialog.vue';
@@ -325,7 +325,10 @@ onBeforeUnmount(() => {
             aria-label="发送"
             @click="sendMessage()"
           >
-            <el-icon><ArrowUp /></el-icon>
+            <svg class="send-arrow" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 19V5" />
+              <path d="M6.5 10.5 12 5l5.5 5.5" />
+            </svg>
           </el-button>
           <button
             v-if="isSending"
@@ -748,6 +751,17 @@ onBeforeUnmount(() => {
 .chat-composer :deep(.send-button:hover:not(.is-disabled)) {
   background: #c93c24;
   border-color: #c93c24;
+}
+
+.send-arrow {
+  width: 22px;
+  height: 22px;
+  color: #fff;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
 }
 
 .chat-composer :deep(.send-button.is-disabled),
