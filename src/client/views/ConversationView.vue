@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { ArrowUp, MoreFilled, Plus } from '@element-plus/icons-vue';
 
@@ -8,6 +8,7 @@ import ToolCallDetail from '@/components/ToolCallDetail.vue';
 import { useChat } from '@/composables/useChat';
 
 const route = useRoute();
+const messageListRef = ref<HTMLElement | null>(null);
 
 const {
   draft,
@@ -51,7 +52,30 @@ const submitOnEnter = (event: KeyboardEvent) => {
   }
 };
 
+const scrollToLatestMessage = async () => {
+  await nextTick();
+
+  if (!messageListRef.value) {
+    return;
+  }
+
+  messageListRef.value.scrollTop = messageListRef.value.scrollHeight;
+};
+
+watch(
+  messages,
+  () => {
+    void scrollToLatestMessage();
+  },
+  {
+    deep: true,
+    flush: 'post',
+  },
+);
+
 onMounted(() => {
+  void scrollToLatestMessage();
+
   if (!sessionId.value) {
     return;
   }
@@ -121,7 +145,7 @@ onMounted(() => {
           </el-button>
         </header>
 
-        <div class="message-list">
+        <div ref="messageListRef" class="message-list">
           <article
             v-for="message in messages"
             :key="message.id"
@@ -207,8 +231,9 @@ onMounted(() => {
   grid-template-columns: 220px minmax(420px, 1fr) minmax(480px, 1.22fr);
   gap: 10px;
   min-width: 1180px;
-  min-height: 100vh;
+  height: 100vh;
   padding: 8px;
+  overflow: hidden;
   color: #171717;
   background: #f6f0e6;
 }
@@ -216,15 +241,23 @@ onMounted(() => {
 .sidebar,
 .chat-card,
 .preview-card {
-  min-height: calc(100vh - 16px);
+  height: calc(100vh - 16px);
+  min-height: 0;
   background: #fffaf2;
   border: 1px solid #e7dfd4;
   box-shadow: 0 16px 48px rgba(75, 46, 26, 0.08);
 }
 
+.chat-column,
+.preview-column {
+  min-width: 0;
+  min-height: 0;
+}
+
 .sidebar {
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   padding: 14px 10px;
   border-radius: 18px;
 }
@@ -382,6 +415,8 @@ onMounted(() => {
   flex: 1;
   min-height: 0;
   padding: 44px 22px 18px;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
   overflow-y: auto;
 }
 
@@ -404,6 +439,7 @@ onMounted(() => {
   padding: 16px 18px;
   color: #3a322b;
   line-height: 1.7;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
   background: #eee5d8;
   border: 1px solid #e1d7ca;
