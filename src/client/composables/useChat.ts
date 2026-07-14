@@ -175,7 +175,7 @@ export function useChat() {
       id: createId('assistant'),
       role: 'assistant',
       createdAt: now(),
-      content: `我会先把需求拆成页面结构、状态逻辑和组件实现。\n\n\`\`\`ts\ninterface ProductRequest {\n  goal: string\n  layout: 'chat-workspace'\n  framework: 'vue3'\n}\n\`\`\`\n\n下一步需要确认是否允许我模拟写入前端文件。`,
+      content: `我先生成一个可直接预览的 HTML 页面，你可以在代码块右上角预览或复制。\n\n\`\`\`html\n<!doctype html>\n<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8" />\n  <meta name="viewport" content="width=device-width, initial-scale=1.0" />\n  <title>产品预览</title>\n  <style>\n    * { box-sizing: border-box; }\n    body {\n      margin: 0;\n      min-height: 100vh;\n      display: grid;\n      place-items: center;\n      font-family: system-ui, sans-serif;\n      color: #2b211b;\n      background: linear-gradient(135deg, #fff8f1, #f3e7d8);\n    }\n    main {\n      width: min(560px, 90%);\n      padding: 48px;\n      text-align: center;\n      background: rgba(255, 255, 255, 0.88);\n      border: 1px solid #e6d8ca;\n      border-radius: 28px;\n      box-shadow: 0 24px 70px rgba(75, 46, 26, 0.14);\n    }\n    h1 { margin: 0 0 16px; font-size: 42px; }\n    p { color: #74675d; line-height: 1.8; }\n    button {\n      margin-top: 18px;\n      padding: 12px 24px;\n      color: #fff;\n      background: #d7472c;\n      border: 0;\n      border-radius: 999px;\n    }\n  </style>\n</head>\n<body>\n  <main>\n    <h1>你的产品已就绪</h1>\n    <p>这是由 AI产品工作站生成的页面预览。</p>\n    <button>开始体验</button>\n  </main>\n</body>\n</html>\n\`\`\`\n\n下一步需要确认是否允许我模拟写入前端文件。`,
       toolCalls: [toolCall],
     });
 

@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router';
 import { ArrowUp, MoreFilled, Plus } from '@element-plus/icons-vue';
 
+import HtmlCodeBlock from '@/components/HtmlCodeBlock.vue';
 import PermissionDialog from '@/components/PermissionDialog.vue';
 import ToolCallDetail from '@/components/ToolCallDetail.vue';
 import { useChat } from '@/composables/useChat';
@@ -10,6 +11,7 @@ import { useChat } from '@/composables/useChat';
 const route = useRoute();
 const messageListRef = ref<HTMLElement | null>(null);
 const thinkingSeconds = ref(0);
+const previewHtml = ref('');
 let thinkingTimer: number | undefined;
 
 const {
@@ -32,6 +34,40 @@ const sessionItems = Array.from({ length: 6 }, (_, index) => ({
   id: index,
   title: '未命名会话',
 }));
+
+interface MessageSegment {
+  type: 'text' | 'html';
+  content: string;
+}
+
+const parseMessageContent = (content: string): MessageSegment[] => {
+  const segments: MessageSegment[] = [];
+  const htmlBlockPattern = /```html\s*([\s\S]*?)```/gi;
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = htmlBlockPattern.exec(content)) !== null) {
+    const text = content.slice(cursor, match.index).trim();
+
+    if (text) {
+      segments.push({ type: 'text', content: text });
+    }
+
+    segments.push({
+      type: 'html',
+      content: match[1].trim(),
+    });
+    cursor = match.index + match[0].length;
+  }
+
+  const remainingText = content.slice(cursor).trim();
+
+  if (remainingText) {
+    segments.push({ type: 'text', content: remainingText });
+  }
+
+  return segments.length ? segments : [{ type: 'text', content }];
+};
 
 const permissionVisible = computed({
   get: () => Boolean(pendingToolCall.value),
@@ -180,9 +216,19 @@ onBeforeUnmount(() => {
             class="message-row"
             :class="`message-row--${message.role}`"
           >
-            <div class="message-bubble">
-              {{ message.content }}
-            </div>
+            <template
+              v-for="(segment, segmentIndex) in parseMessageContent(message.content)"
+              :key="`${message.id}-${segmentIndex}`"
+            >
+              <div v-if="segment.type === 'text'" class="message-bubble">
+                {{ segment.content }}
+              </div>
+              <HtmlCodeBlock
+                v-else
+                :code="segment.content"
+                @preview="previewHtml = $event"
+              />
+            </template>
 
             <ToolCallDetail
               v-for="toolCall in message.toolCalls"
@@ -240,13 +286,20 @@ onBeforeUnmount(() => {
     <section class="preview-column">
       <div class="preview-card">
         <header class="preview-toolbar">
-          <div class="address-bar">LocalHost</div>
+          <div class="address-bar">{{ previewHtml ? 'LocalHost / preview.html' : 'LocalHost' }}</div>
           <button type="button">↗</button>
           <button type="button">⌄</button>
           <button type="button" class="publish-btn">发布</button>
         </header>
 
-        <div class="preview-empty">
+        <iframe
+          v-if="previewHtml"
+          class="html-preview-frame"
+          :srcdoc="previewHtml"
+          sandbox="allow-scripts allow-forms allow-modals"
+          title="HTML 页面预览"
+        />
+        <div v-else class="preview-empty">
           <div class="empty-icon">⌘</div>
           <p>程序完成首次部署后，这里会显示应用预览。</p>
         </div>
@@ -688,5 +741,13 @@ onBeforeUnmount(() => {
 .preview-empty p {
   margin: 0;
   font-size: 14px;
+}
+
+.html-preview-frame {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  background: #fff;
+  border: 0;
 }
 </style>
