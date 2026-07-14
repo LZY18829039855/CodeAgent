@@ -38,6 +38,7 @@ export function useChat() {
   const draft = ref('');
   const isSending = ref(false);
   const pendingToolCall = ref<ToolCall | null>(null);
+  let activeRequestId = 0;
 
   const examplePrompts: ExamplePrompt[] = [
     {
@@ -134,6 +135,8 @@ export function useChat() {
       return;
     }
 
+    const requestId = ++activeRequestId;
+
     messages.value.push({
       id: createId('user'),
       role: 'user',
@@ -147,6 +150,10 @@ export function useChat() {
     isSending.value = true;
 
     await new Promise((resolve) => window.setTimeout(resolve, 500));
+
+    if (requestId !== activeRequestId) {
+      return;
+    }
 
     const toolCall: ToolCall = {
       id: createId('tool'),
@@ -176,6 +183,15 @@ export function useChat() {
     isSending.value = false;
   };
 
+  const stopGeneration = () => {
+    if (!isSending.value) {
+      return;
+    }
+
+    activeRequestId += 1;
+    isSending.value = false;
+  };
+
   return {
     draft,
     examplePrompts,
@@ -187,5 +203,6 @@ export function useChat() {
     approveToolCall,
     rejectToolCall,
     sendMessage,
+    stopGeneration,
   };
 }

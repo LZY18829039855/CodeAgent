@@ -17,9 +17,11 @@ const {
   approveToolCall,
   rejectToolCall,
   sendMessage,
+  stopGeneration,
 } = useChat();
 
 const sessionId = computed(() => String(route.query.session_id ?? ''));
+const canSend = computed(() => Boolean(draft.value.trim()) && !isSending.value);
 
 const pendingPromptKey = (id: string) => `pending-prompt:${id}`;
 
@@ -43,7 +45,10 @@ const submitOnEnter = (event: KeyboardEvent) => {
   }
 
   event.preventDefault();
-  void sendMessage();
+
+  if (canSend.value) {
+    void sendMessage();
+  }
 };
 
 onMounted(() => {
@@ -135,7 +140,7 @@ onMounted(() => {
           </article>
         </div>
 
-        <div class="chat-composer">
+        <div class="chat-composer" :class="{ 'is-generating': isSending }">
           <button type="button" class="composer-icon" aria-label="添加附件">
             <el-icon><Plus /></el-icon>
           </button>
@@ -148,9 +153,25 @@ onMounted(() => {
             @keydown.enter="submitOnEnter"
           />
           <button type="button" class="composer-icon" aria-label="工具选项">⌘</button>
-          <el-button type="primary" circle :loading="isSending" aria-label="发送" @click="sendMessage()">
+          <el-button
+            class="send-button"
+            type="primary"
+            circle
+            :disabled="!canSend"
+            aria-label="发送"
+            @click="sendMessage()"
+          >
             <el-icon><ArrowUp /></el-icon>
           </el-button>
+          <button
+            v-if="isSending"
+            type="button"
+            class="stop-button"
+            aria-label="终止对话"
+            @click="stopGeneration"
+          >
+            <span />
+          </button>
         </div>
       </div>
     </section>
@@ -413,6 +434,10 @@ onMounted(() => {
   box-shadow: 0 12px 30px rgba(75, 46, 26, 0.08);
 }
 
+.chat-composer.is-generating {
+  grid-template-columns: 34px 1fr 34px 38px 42px;
+}
+
 .chat-composer :deep(.el-textarea__inner) {
   min-height: 42px !important;
   background: transparent;
@@ -429,6 +454,56 @@ onMounted(() => {
   border-radius: 50%;
   cursor: pointer;
   place-items: center;
+}
+
+.chat-composer :deep(.send-button) {
+  width: 38px;
+  height: 38px;
+  color: #fff;
+  background: #d7472c;
+  border-color: #d7472c;
+  box-shadow: 0 8px 18px rgba(215, 71, 44, 0.24);
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.chat-composer :deep(.send-button:hover:not(.is-disabled)) {
+  background: #c93c24;
+  border-color: #c93c24;
+}
+
+.chat-composer :deep(.send-button.is-disabled),
+.chat-composer :deep(.send-button.is-disabled:hover) {
+  color: #aaa197;
+  background: #ddd5ca;
+  border-color: #ddd5ca;
+  box-shadow: none;
+}
+
+.stop-button {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  background: #211d19;
+  border: 0;
+  border-radius: 50%;
+  box-shadow: 0 8px 18px rgba(33, 29, 25, 0.2);
+  cursor: pointer;
+  place-items: center;
+}
+
+.stop-button span {
+  width: 11px;
+  height: 11px;
+  background: #fff;
+  border-radius: 2px;
+}
+
+.stop-button:hover {
+  background: #000;
 }
 
 .preview-card {
